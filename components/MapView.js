@@ -38,16 +38,6 @@ var MapView = React.createClass({
     style: View.propTypes.style,
 
     /**
-     * If `true` the app will ask for the user's location and focus on it.
-     * Default value is `false`.
-     *
-     * **NOTE**: You need to add NSLocationWhenInUseUsageDescription key in
-     * Info.plist to enable geolocation, otherwise it is going
-     * to *fail silently*!
-     */
-    showsUserLocation: PropTypes.bool,
-
-    /**
      * If `false` points of interest won't be displayed on the map.
      * Default value is `true`.
      *
@@ -262,7 +252,7 @@ var MapView = React.createClass({
 
   getInitialState: function() {
     return {
-      isReady: Platform.OS === 'ios',
+      isReady: false,
     };
   },
 
@@ -333,6 +323,27 @@ var MapView = React.createClass({
 
   fitToElements: function(animated) {
     this._runCommand('fitToElements', [animated]);
+  },
+
+  getMetersPerPt: function(callback) {
+    this._runCommand('getMetersPerPt', [ callback ]);
+  },
+
+  convertCoordsToPoint: function(lat, lng, callback) {
+    this._runCommand('convertCoordsToPoint', [ lat, lng, callback ]);
+  },
+
+  convertPointCoords: function(x, y, callback) {
+    this._runCommand('convertPointCoords', [ x, y, callback ]);
+  },
+
+  setZoomLevel: function(zoomLevel, callback) {
+    console.log('setZoomLEvel!!!', zoomLevel);
+    this._runCommand('setZoomLevel', [ zoomLevel, callback ]);
+  },
+
+  getZoomLevel: function(callback) {
+    this._runCommand('getZoomLevel', [ callback ]);
   },
 
   _getHandle: function() {
