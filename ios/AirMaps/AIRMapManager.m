@@ -36,6 +36,7 @@ static NSString *const RCTMapViewKey = @"MapView";
 
 @implementation AIRMapManager
 
+
 RCT_EXPORT_MODULE()
 
 - (UIView *)view
@@ -56,7 +57,6 @@ RCT_EXPORT_MODULE()
     return map;
 }
 
-RCT_EXPORT_VIEW_PROPERTY(showsUserLocation, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(showsPointsOfInterest, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(showsBuildings, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(showsCompass, BOOL)
@@ -72,6 +72,7 @@ RCT_EXPORT_VIEW_PROPERTY(mapType, MKMapType)
 RCT_EXPORT_VIEW_PROPERTY(onChange, RCTBubblingEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onPress, RCTBubblingEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onLongPress, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onMapReady, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onMarkerPress, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onMarkerSelect, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onMarkerDeselect, RCTDirectEventBlock)
@@ -141,6 +142,138 @@ RCT_EXPORT_METHOD(fitToElements:(nonnull NSNumber *)reactTag
         }
     }];
 }
+
+RCT_EXPORT_METHOD(getMetersPerPt:(nonnull NSNumber *)reactTag callback:(RCTResponseSenderBlock)callback)
+{
+
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+        id view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[AIRMap class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting AIRMap, got: %@", view);
+        } else {
+            AIRMap *mapView = (AIRMap *)view;
+
+            // <http://stackoverflow.com/a/8412328> (see comment regarding latitudinalMeters)
+            MKCoordinateRegion myRegion = MKCoordinateRegionMakeWithDistance(mapView.centerCoordinate, 1, 0);
+            CGRect myRect = [mapView convertRegion: myRegion toRectToView: nil];
+            callback(@[[NSNull null], @(myRect.size.height)]);
+
+        }
+    }];
+
+
+}
+
+RCT_EXPORT_METHOD(getZoomLevel:(nonnull NSNumber *)reactTag callback:(RCTResponseSenderBlock)callback)
+{
+    
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+        id view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[AIRMap class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting AIRMap, got: %@", view);
+        } else {
+            AIRMap *mapView = (AIRMap *)view;
+            callback(@[[NSNull null], @(mapView.zoomLevel)]);
+        }
+    }];
+}
+
+
+RCT_EXPORT_METHOD(setZoomLevel:(nonnull NSNumber *)reactTag
+                  zoomLevel:(nonnull NSNumber *)zoomLevel
+                  callback:(RCTResponseSenderBlock)callback)
+{
+    
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+        id view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[AIRMap class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting AIRMap, got: %@", view);
+        } else {
+            AIRMap *mapView = (AIRMap *)view;
+            int zoom = [zoomLevel intValue];
+            RCTLog(@"zoom level passed was %d", zoom);
+            [mapView setZoomLevel:zoom];
+            callback(@[[NSNull null], @(zoom)]);
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(convertPointCoords:(nonnull NSNumber *)reactTag
+                  x:(nonnull NSNumber *)x
+                  y:(nonnull NSNumber *)y
+                  callback:(RCTResponseSenderBlock)callback)
+{
+    
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+        id view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[AIRMap class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting AIRMap, got: %@", view);
+        } else {
+            AIRMap *mapView = (AIRMap *)view;
+            
+            // convert NSNumbers to double
+            // <http://stackoverflow.com/a/1801213>
+            double xD = [x doubleValue];
+            double yD = [y doubleValue];
+            
+            // get the center point
+            CGPoint point = CGPointMake(xD, yD);
+            
+            // then transform the point into lat, lng values
+            CLLocationCoordinate2D pointCoord;
+            pointCoord = [mapView convertPoint:point toCoordinateFromView:mapView];
+            
+            callback(@[[NSNull null], @{
+                           @"latitude": @(pointCoord.latitude),
+                           @"longitude": @(pointCoord.longitude)
+                           }]);
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(convertCoordsToPoint:(nonnull NSNumber *)reactTag
+                  lat:(nonnull NSNumber *)lat
+                  lng:(nonnull NSNumber *)lng
+                  callback:(RCTResponseSenderBlock)callback)
+{
+    
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+        id view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[AIRMap class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting AIRMap, got: %@", view);
+        } else {
+            AIRMap *mapView = (AIRMap *)view;
+
+            // convert NSNumbers to double
+            // <http://stackoverflow.com/a/1801213>
+            CLLocationDegrees latitudeD = [lat doubleValue];
+            CLLocationDegrees longitudeD = [lng doubleValue];
+
+            // create a lat/lng pair from the passed arguments
+            CLLocationCoordinate2D coord = CLLocationCoordinate2DMake(latitudeD, longitudeD);
+            
+            // convert latlng to point (x,y)
+            CGPoint point = [mapView convertCoordinate:coord toPointToView:view];
+            
+            // then return the callback with the point
+            callback(@[[NSNull null], @{
+                    @"x": @(point.x),
+                    @"y": @(point.y)
+            }]);
+        }
+    }];
+}
+
+
+
+
+
+- (void)mapViewDidFinishRenderingMap:(AIRMap *)mapView fullyRendered:(BOOL)fullyRendered
+{
+    id event = @{ @"fullyRendered": @(fullyRendered) };
+    if (mapView.onMapReady) mapView.onMapReady(event);
+}
+
 
 #pragma mark Gesture Recognizer Handlers
 
@@ -242,7 +375,7 @@ static int kDragCenterContext;
     AIRMapMarker *marker = (AIRMapMarker *)view.annotation;
 
     BOOL isPinView = [view isKindOfClass:[MKPinAnnotationView class]];
-    
+
     id event = @{
                  @"id": marker.identifier ?: @"unknown",
                  @"coordinate": @{
@@ -250,7 +383,7 @@ static int kDragCenterContext;
                          @"longitude": @(marker.coordinate.longitude)
                          }
                  };
-    
+
     if (newState == MKAnnotationViewDragStateEnding || newState == MKAnnotationViewDragStateCanceling) {
         if (!isPinView) {
             [view setDragState:MKAnnotationViewDragStateNone animated:NO];
@@ -309,19 +442,6 @@ static int kDragCenterContext;
     }
 }
 
-- (void)mapView:(AIRMap *)mapView didUpdateUserLocation:(MKUserLocation *)location
-{
-    if (mapView.followUserLocation) {
-        MKCoordinateRegion region;
-        region.span.latitudeDelta = AIRMapDefaultSpan;
-        region.span.longitudeDelta = AIRMapDefaultSpan;
-        region.center = location.coordinate;
-        [mapView setRegion:region animated:YES];
-
-        // Move to user location only for the first time it loads up.
-        mapView.followUserLocation = NO;
-    }
-}
 
 - (void)mapView:(AIRMap *)mapView regionWillChangeAnimated:(__unused BOOL)animated
 {

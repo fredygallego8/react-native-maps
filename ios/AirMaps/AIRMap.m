@@ -20,11 +20,36 @@ const CLLocationDegrees AIRMapDefaultSpan = 0.005;
 const NSTimeInterval AIRMapRegionChangeObserveInterval = 0.1;
 const CGFloat AIRMapZoomBoundBuffer = 0.01;
 
+#define MERCATOR_OFFSET 268435456
+#define MERCATOR_RADIUS 85445659.44705395
 
 @interface MKMapView (UIGestureRecognizer)
 
 // this tells the compiler that MKMapView actually implements this method
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch;
+
+@end
+
+
+@implementation AIRMap (ZoomLevel)
+
+- (void)setZoomLevel:(NSUInteger)zoomLevel {
+    RCTLog(@"setting zoom level %lu", (unsigned long)zoomLevel);
+    [self setCenterCoordinate:self.centerCoordinate zoomLevel:zoomLevel animated:NO];
+}
+
+- (int)zoomLevel {
+    RCTLog(@"zoomLevel being called");
+    return MIN(log2(360 * ((self.frame.size.width/256) / self.region.span.longitudeDelta)) + 1, 20);
+}
+
+- (void)setCenterCoordinate:(CLLocationCoordinate2D)centerCoordinate
+                  zoomLevel:(NSUInteger)zoomLevel animated:(BOOL)animated {
+    
+    RCTLog(@"set center coordinate %lu", (unsigned long)zoomLevel);
+    MKCoordinateSpan span = MKCoordinateSpanMake(0, 360/pow(2, zoomLevel)*self.frame.size.width/256);
+    [self setRegion:MKCoordinateRegionMake(centerCoordinate, span) animated:animated];
+}
 
 @end
 
@@ -46,6 +71,7 @@ const CGFloat AIRMapZoomBoundBuffer = 0.01;
     // https://github.com/facebook/react-native/blob/v0.16.0/Libraries/Text/RCTTextField.m#L20
     NSMutableArray<UIView *> *_reactSubviews;
 }
+
 
 - (instancetype)init
 {
@@ -161,21 +187,16 @@ const CGFloat AIRMapZoomBoundBuffer = 0.01;
 
 #pragma mark Accessors
 
-- (void)setShowsUserLocation:(BOOL)showsUserLocation
-{
-    if (self.showsUserLocation != showsUserLocation) {
-        if (showsUserLocation && !_locationManager) {
-            _locationManager = [CLLocationManager new];
-            if ([_locationManager respondsToSelector:@selector(requestWhenInUseAuthorization)]) {
-                [_locationManager requestWhenInUseAuthorization];
-            }
-        }
-        super.showsUserLocation = showsUserLocation;
+- (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray *)locations {
+    manager.delegate = nil;
+    [manager stopUpdatingLocation];
+}
 
-        // If it needs to show user location, force map view centered
-        // on user's current location on user location updates
-        _followUserLocation = showsUserLocation;
-    }
+- (void)mapView:(MKMapView *)mapView didUpdateUserLocation:(MKUserLocation *)location
+{
+    mapView.showsUserLocation = NO;
+    [mapView setUserTrackingMode:MKUserTrackingModeNone];
+    //[self.locationManager stopUpdatingLocation];
 }
 
 - (void)setRegion:(MKCoordinateRegion)region animated:(BOOL)animated

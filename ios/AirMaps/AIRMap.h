@@ -22,7 +22,7 @@ extern const CGFloat AIRMapZoomBoundBuffer;
 
 @property (nonatomic, strong) SMCalloutView *calloutView;
 
-@property (nonatomic, assign) BOOL followUserLocation;
+@property (assign, nonatomic) NSUInteger zoomLevel;
 @property (nonatomic, assign) BOOL hasStartedRendering;
 @property (nonatomic, assign) CGFloat minDelta;
 @property (nonatomic, assign) CGFloat maxDelta;
@@ -39,6 +39,7 @@ extern const CGFloat AIRMapZoomBoundBuffer;
 @property (nonatomic, copy) RCTBubblingEventBlock onChange;
 @property (nonatomic, copy) RCTBubblingEventBlock onPress;
 @property (nonatomic, copy) RCTBubblingEventBlock onLongPress;
+@property (nonatomic, copy) RCTDirectEventBlock onMapReady;
 @property (nonatomic, copy) RCTDirectEventBlock onMarkerPress;
 @property (nonatomic, copy) RCTDirectEventBlock onMarkerSelect;
 @property (nonatomic, copy) RCTDirectEventBlock onMarkerDeselect;
